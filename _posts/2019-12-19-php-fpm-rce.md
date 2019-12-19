@@ -80,19 +80,36 @@ nameserver 8.8.8.8 추가
 <center>해당 취약점에 대한 bug fix 내용</center>
 > 출처: https://github.com/php/php-src/commit/ab061f95ca966731b1c84cf5b7b20155c0a1c06a#diff-624bdd47ab6847d777e15327976a9227
 
-취약점 제보자의 문서를 찾아보면 `fastcgi_split_path_info` 지시문의 정규표현식은 개행 문자(\n,%0A)를 사용하여 해제할 수 있다. 정규표현식이 제대로 작동하지 않으므로 `PATH_INFO`는 취약점의 트리거가 될 수 있다라고 나온다.
+취약점 제보자의 문서를 찾아보면 `fastcgi_split_path_info` 지시문의 정규표현식은 개행 문자(\n,%0A)를 사용하여 해제할 수 있다. 정규표현식이 제대로 작동하지 않으므로 `PATH_INFO($fastcgi_path_info)`는 취약점의 트리거가 될 수 있다라고 나온다.
 
 > The regexp in `fastcgi_split_path_info` directive can be broken using the newline character (in encoded form, %0a). Broken regexp leads to empty PATH_INFO, which triggers the bug.
 
-이 말은, 위 사진의 수정되기 전 코드를 보면, `path_info`값이 NULL값으로 설정될 수 있다는 뜻이다.
+```xml
+# NGINX configuration 파일
+
+location ~ [^/]\.php(/|$){
+	fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+	include fastcgi_params;
+
+	fastcgi_param PATH_INFO 	$fastcgi_path_info;
+	fastcgi_index index.php;
+	fastcgi_param REDIRECT_STATUS 	200;
+	fastcgi_param SCRIPT_FILENAME /var/www/html$fastcgi_script_name;
+	fastcgi_param DOCUMENT_ROOT /var/www/html;
+	fastcgi_pass php:9000;
+}
+```
+`fastcgi_split_path_info`의 정규표현식을 보면 첫 글자가 dot(.)이다. dot은 개행 문자(\n)를 제외한 임의의 한 문자를 의미하므로, 개행 문자가 들어온다면 변환에 실패한다.
+
+수정되기전 소스코드를 보면, `path_info = env_path_info ? env_path_info + pilen - slen : NULL;`에서 `path_info`값이 NULL로 설정될 수 있다는 뜻이다.
 
 소스코드를 자세히 보면,
-
 ```c
 # php-src/sapi/fpm/fpm/fpm_main.c 파일
 989		char *env_path_info = FCGI_GETENV(request, "PATH_INFO");
 		...
 1108	char *pt = estrndup(script_path_translated, script_path_translated_len);
+1109	int len = script_path_translated_len;
 		...
 1131	int ptlen = strlen(pt);
 1132	int slen = len - ptlen;
@@ -104,18 +121,64 @@ nameserver 8.8.8.8 추가
 1138		path_info = script_path_translated + ptlen;
 1139		tflag = (slen != 0 && (!orig_path_info || strcmp(orig_path_info, path_info) != 0));
 1140	} else {
-1141		path_info = (env_path_info && pilen > slen) ? env_path_info + pilen - slen : NULL;
+1141		path_info = env_path_info ? env_path_info + pilen - slen : NULL;
 1142		tflag = path_info && (orig_path_info != path_info);
 1143	}
 		...
 ```
 
-`env_path_info` 는 FastCGI 모듈의 환경변수를 가져오는 FCGI_GETENV함수로, 클라이언트의 요청값에서 `PATH_INFO`(path_info와 동일)의 문자열 주소값을 가지고 있습니다.
+1. `env_path_info` 선언에서, FastCGI 모듈의 환경변수를 가져오는 FCGI_GETENV함수를 사용한다. 이는 클라이언트의 요청값에서 `PATH_INFO`의 문자열 주소값을 가져온다. 
+2. 클라이언트의 잘못된 요청으로 `path_info`가 NULL이 되면 `1133번째 줄`의 코드대로, `pilen = 0`이 된다. 참고로, C언어에서 `변수선언 = 조건? 참 : 거짓;`라는 문법이 존재한다. 조건이 참일 시 콜론(:)앞의 값으로 선언이, 거짓일 시 콜론 뒤의 값으로 선언이 이루어 진다.
+3. `1131~1132번째 줄`에서 `slen`은 클라이언트가 요청한 URL이다.
+4. `pt`는 `script_path_translated`값을 `script_path_translated_len`만큼 복사한 문자열의 주소를 가지고 있다.<br>
+* `script_path_translated_len`은 클라이언트가 요청한 URL(`script_path_translated_len`)을 서버상의 PHP파일 경로(`SCRIPT_FILENAME`)로 저장한 문자열의 길이이다.
+* 변환된 `script_path_translated`은 `SCRIPT_FILENAME`에서 마지막 `\`값을 기준(URL의 파라미터)으로 자른, 앞부분 `순수 URL`의 주소 이다.
+* 쉽게 말하자면, `pt`는 request에서 파라미터를 뗀 `SCRIPT_FILENAME` 값의 문자열 주소이다
 
-클라이언트의 잘못된 요청으로 `path_info`가 NULL이 되면 1133번째 줄의 코드대로, `pilen = 0`이 된다. 참고로, C언어에서 `변수선언 = 조건? 참 : 거짓;`라는 문법이 존재한다. 조건이 참일 시 콜론(:)앞의 값으로 선언이, 거짓일 시 콜론 뒤의 값으로 선언이 이루어 진다.
 
-`pt`는 
+요청 URL이 http://127.0.0.1/index.php/123%0Atest.php 이다면, 아래와 같다.
+```c
+# php-src/sapi/fpm/fpm/fpm_main.c 파일
+		...
+1108	char *pt = "/var/www/html/index.php";
+		...
+1131	int ptlen = strlen("/var/www/html/index.php");
+1132	int slen = strlen("/var/www/html/index.php/123\ntest.php")
+				 - strlen("/var/www/html/index.php");
+1133	int pilen = 0; // path_info에서 %0A로 인한 0값 설정
+1134	int tflag = 0;
+		...
+1140	else {
+1141		path_info = env_path_info ? env_path_info + pilen - slen : NULL;
+			//path_info = "123" + 0 - "/123\ntest.php" or NULL
+1142		tflag = path_info && (orig_path_info != path_info);
+1143	}
+		...
+```
 
+클라이언트의 요청을 수정할 수 있다면, `path_info` 값을 NULL이 아닌 특정 주소값으로 가져갈 수 있다.
+
+```c
+# php-src/sapi/fpm/fpm/fpm_main.c 파일
+		...
+1151	path_info[0] = 0;
+1152	if (!orig_script_name ||
+1153		strcmp(orig_script_name, env_path_info) != 0) {
+1154		if (orig_script_name) {
+1155		FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name);
+1156		}
+1157		SG(request_info).request_uri = FCGI_PUTENV(request, "SCRIPT_NAME", env_path_info);
+1158	} else {
+1159		SG(request_info).request_uri = orig_script_name;
+1160	}
+		...
+```
+
+`1151번째 줄`의 `path_info[0] = 0;`을 통해, 어떤 특정주소 값도 0으로 바꿀 수 있으며, 특정 문자열과 구조체를 `0` 으로 바꿀 수 있다.
+해당 문자열과 구조체는 `FCGI_PUTENV`함수 내부의 `fcgi_hash_set` 함수를 통해서 클라이언트 요청값에 있는 실행가능 한 코드로 대체되며, `FCGI_PUTENV`로 정의된 `fcgi_quick_putenv` 함수를 통해 서버에서 실행된다.
+ 
+
+ 
 
 <br>
 <br>
