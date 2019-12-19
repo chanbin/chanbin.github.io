@@ -1,0 +1,20 @@
+vBulletin Remote Code Excute(CVE-2019-1675)
+
+vBulletin(PHP)은 가장 인기 있는 포럼 소프트웨어 중 하나이며
+
+  vBulletin 버전 5.0.0에서 도입 된 Ajax 렌더 함수에 의해 사전 인증이 된 원격 코드를 실행 할 수 있습니다.
+Ajax 렌더 함수로 서버에서 제공하는 PHP 템플릿 코드를 실행할 수 있습니다.
+
+  widgetConfig [code] 변수에 포함된 데이터의 유효성 검사가 올바르지 않아서 발생합니다.
+HTTP 요청을 변조하여 해당 취약점을 사용하면 서버 권한으로 원격 코드를 실행할 수 있습니다.
+
+
+epass=2dmfrb28nu3c6s9j&routestring=ajax/render/widget_php&widgetConfig[code]=die(@md5(HellovBulletin));   
+
+routestring이 ajax/render로 시작할 때 핸들러가 'callRender'로 시작한다
+ 
+callRender는 뒤의 인자값인 widget_php와 widgetConfig[code]를 사용하여 페이지를 렌더링합니다
+
+widget_php 템플릿에 따르면 widgetConfig[code]가 비어있지 않고, $vboptions['disable_php_rendering'] 이 비활성화 되어있다면
+
+evalCode($code)를 실행합니다. - widgetConfig[code]의 code - 이 함수는 php 의 eval()함수에 의해 직접 실행됩니다.

