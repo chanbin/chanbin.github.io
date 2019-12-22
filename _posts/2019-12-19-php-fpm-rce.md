@@ -21,7 +21,7 @@ PHP-FPM(FastCGI Process Manager)은 동적 페이지를 빠르게 처리하기 �
 
 해당 취약점은 아래와 같이 잘못된 NginX configuration으로 PHP-FPM을 사용할 경우 발생한다.
 
-![](https://chanbin.github.io/assets/img/php-fpm/1.png)<br>
+![](https://chanbin.github.io/assets/img/php-fpm/1.png)
 <center>해당 취약점에 대한 bug fix 내용</center>
 > 출처: https://github.com/php/php-src/commit/ab061f95ca966731b1c84cf5b7b20155c0a1c06a#diff-624bdd47ab6847d777e15327976a9227
 
@@ -41,7 +41,7 @@ PHP-FPM(FastCGI Process Manager)은 동적 페이지를 빠르게 처리하기 �
 [test@localhost CVE-2019-11043]$ sudo docker-compose up -d
 ```
 
-![](https://chanbin.github.io/assets/img/php-fpm/2.png)<br>
+![](https://chanbin.github.io/assets/img/php-fpm/2.png)
 <center>취약한 환경 구축</center>
 
 <br>
@@ -66,7 +66,7 @@ nameserver 8.8.8.8 추가
 [test@localhost test]$ 
 ```
 
-![](https://chanbin.github.io/assets/img/php-fpm/3.png)<br>
+![](https://chanbin.github.io/assets/img/php-fpm/3.png)
 <center>취약점을 통해 파일 작성 후 원격 코드 실행 화면</center>
 
 <br>
@@ -76,7 +76,7 @@ nameserver 8.8.8.8 추가
 
 취약점 패치 내역을 다시 보면 `path_info` 변수의 조건에 문자열 길이 필터를 추가하여, false 값으로 유도하지 못하게 하고있다.
 
-![](https://chanbin.github.io/assets/img/php-fpm/1.png)<br>
+![](https://chanbin.github.io/assets/img/php-fpm/1.png)
 <center>해당 취약점에 대한 bug fix 내용</center>
 > 출처: https://github.com/php/php-src/commit/ab061f95ca966731b1c84cf5b7b20155c0a1c06a#diff-624bdd47ab6847d777e15327976a9227
 
