@@ -179,11 +179,12 @@ location ~ [^/]\.php(/|$){
 		...
 ```
 
-`1151번째 줄`의 `path_info[0] = 0;`을 통해, 어떤 특정주소 값도 0으로 바꿀 수 있으며, 특정 구조체의 문자열도 `0` 으로 바꿀 수 있다.
+`1151번째 줄`의 `path_info[0] = 0;`을 통해, 어떤 특정주소의 첫번째 값을 0으로 바꿀 수 있다.
 해당 문자열과 구조체는 `FCGI_PUTENV`함수 내부의 `fcgi_hash_set` 함수를 통해서 클라이언트 요청값에 있는 실행가능 한 코드로 대체되며, `FCGI_PUTENV`로 정의된 `fcgi_quick_putenv` 함수를 통해 서버에서 실행된다.
  
 
- 
+> 출처 : https://blog.orange.tw/2019/10/an-analysis-and-thought-about-recently.html 
+> 출처 : https://github.com/php/php-src/blob/5d6e923d46a89fe9cd8fb6c3a6da675aa67197b4/main/fastcgi.c#L1703
 
 <br>
 <br>
