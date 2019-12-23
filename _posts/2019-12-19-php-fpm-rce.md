@@ -101,11 +101,12 @@ location ~ [^/]\.php(/|$){
 ```
 `fastcgi_split_path_info`의 정규표현식을 보면 첫 글자가 dot(.)이다. dot은 개행 문자(\n)를 제외한 임의의 한 문자를 의미하므로, 개행 문자가 들어온다면 변환에 실패한다.
 
-수정되기전 소스코드를 보면, `path_info = env_path_info ? env_path_info + pilen - slen : NULL;`에서 `path_info`값이 NULL로 설정될 수 있다는 뜻이다.
+[컨셉] 수정되기전 소스코드를 보면, `path_info = env_path_info ? env_path_info + pilen - slen : NULL;`에서 `path_info`값을 설정할 수 있다는 뜻이다.
 
 소스코드를 자세히 보면,
 ```c
 # php-src/sapi/fpm/fpm/fpm_main.c 파일
+		...
 989		char *env_path_info = FCGI_GETENV(request, "PATH_INFO");
 		...
 1108	char *pt = estrndup(script_path_translated, script_path_translated_len);
@@ -127,18 +128,21 @@ location ~ [^/]\.php(/|$){
 		...
 ```
 
-1. `env_path_info` 선언에서, FastCGI 모듈의 환경변수를 가져오는 FCGI_GETENV함수를 사용한다. 이는 클라이언트의 요청값에서 `PATH_INFO`의 문자열 주소값을 가져온다. 
-2. 클라이언트의 잘못된 요청으로 `path_info`가 NULL이 되면 `1133번째 줄`의 코드대로, `pilen = 0`이 된다. 참고로, C언어에서 `변수선언 = 조건? 참 : 거짓;`라는 문법이 존재한다. 조건이 참일 시 콜론(:)앞의 값으로 선언이, 거짓일 시 콜론 뒤의 값으로 선언이 이루어 진다.
-3. `1131~1132번째 줄`에서 `slen`은 클라이언트가 요청한 URL이다.
-4. `pt`는 `script_path_translated`값을 `script_path_translated_len`만큼 복사한 문자열의 주소를 가지고 있다.<br>
-* `script_path_translated_len`은 클라이언트가 요청한 URL(`script_path_translated_len`)을 서버상의 PHP파일 경로(`SCRIPT_FILENAME`)로 저장한 문자열의 길이이다.
-* 변환된 `script_path_translated`은 `SCRIPT_FILENAME`에서 마지막 `\`값을 기준(URL의 파라미터)으로 자른, 앞부분 `순수 URL`의 주소 이다.
-* 쉽게 말하자면, `pt`는 request에서 파라미터를 뗀 `SCRIPT_FILENAME` 값의 문자열 주소이다
+1. `env_path_info` 선언에서, FastCGI 모듈의 환경변수를 가져오는 FCGI_GETENV함수를 사용한다. 이는 클라이언트의 요청값에서 `PATH_INFO`의 문자열(fastcgi_path_info, 실제 요청 URI) 주소값을 가져온다. 
+2. 클라이언트의 잘못된 요청으로 `path_info`가 변조되면 `1133번째 줄`에서 strlen(NULL)은 거짓이므로 `pilen = 0`이 된다.
+* 참고로, C언어에서 `변수선언 = 조건? 참 : 거짓;`라는 문법이 존재한다. 조건이 참일 시 콜론(:)앞의 값으로 선언이, 거짓일 시 콜론 뒤의 값으로 선언이 이루어 진다.
+3. `pt`는 `script_path_translated`값을 `script_path_translated_len`만큼 복사한 문자열의 주소를 가지고 있다.
+* `script_path_translated`는 클라이언트가 요청한 URI를 서버상의 PHP파일 경로(`SCRIPT_FILENAME`, `/var/www/html$fastcgi_script_name`)로 저장한 문자열이다.
+* `script_path_translated_len`은 `script_path_translated`에서 `/` 또는 `\\`값이 나올 때까지 while문으로 반복하며 자르고, 해당 문자열을 찾으면 그 길이를 구한다. `script_path_translated_len`은 앞부분 `순수 URL`의 길이가 된다.
+* 쉽게 말하자면, `pt`는 request에서 파라미터를 뗀 `SCRIPT_FILENAME` 이다
+4. `1131~1132번째 줄`에서 `slen`은 클라이언트가 요청한 URI 파라미터의 길이이다.
 
 
 요청 URL이 http://127.0.0.1/index.php/123%0Atest.php 이다면, 아래와 같다.
 ```c
 # php-src/sapi/fpm/fpm/fpm_main.c 파일
+		...
+989		char *env_path_info = "/var/www/html/index.php/123\ntest.php";
 		...
 1108	char *pt = "/var/www/html/index.php";
 		...
@@ -150,13 +154,14 @@ location ~ [^/]\.php(/|$){
 		...
 1140	else {
 1141		path_info = env_path_info ? env_path_info + pilen - slen : NULL;
-			//path_info = "123" + 0 - "/123\ntest.php" or NULL
+			// env_path_info==NULL, NULL=num이므로 참
+			// path_info = strlen("123") + 0 - strlen("/123\ntest.php") = 음수
 1142		tflag = path_info && (orig_path_info != path_info);
 1143	}
 		...
 ```
 
-클라이언트의 요청을 수정할 수 있다면, `path_info` 값을 NULL이 아닌 특정 주소값으로 가져갈 수 있다.
+[컨셉 - 결과] `pilen`은 0이 되었고, `slen`은 URI를 뺀 실제파일 경로의 길이가 되었기 때문에, `path_info`는 NULL이 아닌 음의 값을 가질 수 있으므로 Underflow를 이용해 `특정 주소값`을 가리킬 수 있다.
 
 ```c
 # php-src/sapi/fpm/fpm/fpm_main.c 파일
@@ -174,7 +179,7 @@ location ~ [^/]\.php(/|$){
 		...
 ```
 
-`1151번째 줄`의 `path_info[0] = 0;`을 통해, 어떤 특정주소 값도 0으로 바꿀 수 있으며, 특정 문자열과 구조체를 `0` 으로 바꿀 수 있다.
+`1151번째 줄`의 `path_info[0] = 0;`을 통해, 어떤 특정주소 값도 0으로 바꿀 수 있으며, 특정 구조체의 문자열도 `0` 으로 바꿀 수 있다.
 해당 문자열과 구조체는 `FCGI_PUTENV`함수 내부의 `fcgi_hash_set` 함수를 통해서 클라이언트 요청값에 있는 실행가능 한 코드로 대체되며, `FCGI_PUTENV`로 정의된 `fcgi_quick_putenv` 함수를 통해 서버에서 실행된다.
  
 
