@@ -74,27 +74,25 @@ Host: 127.0.0.1:8080
 User-Agent: Mozilla/5.0
 D-Pisos: 8========================================================================================================================================================================================================================================================D(250자)
 Ebut: mamku tvoyu
-```
-1. `fastcgi_split_path_info` 정규표현식을 이용하여 `PATH_INFO(env_path_info)`에 `개행`문자를 삽입한다.
-2. 정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 되어 `path_info`변수가 특정 `Underflow`값으로 초기된다.
-3. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `[1222번째 줄]path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
-4. `path_info`가 PHP-FPM의 CGI 환경구조체인 `fcgi_data_seg`의 `pos` 주소를 가리키도록 설정한다.(추후 공격시, `pos`주소 까지의 offset을 맞춘다면 set-cookie 헤더를 확인할 수 있다.)
-5. `FCGI_PUTENV(char *name, char *value)`는 `nginx`와 `fastcgi`가 통신할때 사용하는 전역변수에 들어있는 구조체(`fcgi_data_seg`)에서 해쉬(`hash_value`)를 검색하여
-메모리의 힙에 로드된 해쉬버킷(`fcgi_hash_buket`)값을 수정한다(fcgi_hash_set함수).
-6. `fcgi_hash_buckt`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시값을 가진 더미헤더 `HTTP_EBUT`을 찾아낸다.
-7. `D-Fisos`헤더는 `Ebut`헤더가 특정위치에 들어갈 수 있도록 자리를 차지하는 역할이며, `Ebut`은 `fastcgi_params`에 정의된 전역변수 `HTTP_EBUT`으로 자동으로 바뀐다
-8. `FCGI_PUTENV`의 `fcgi_hash_set`에서, 특정 헤시테이블의 `has_value`와 변수이름의 `길이`가 동일하면 새로운 변수와 값으로 덮어쓸 수 있다.
-9. `HTTP_EBUT`의 주소를 `D-Fiso`s헤더를 통해 수정될 `fcgi_data_seg->pos`주소와 `같은 버퍼(fcgi_data_seg)`안에 위치하도록 `유도`하고, 수정된 `fcgi_data_seg->pos` 값과 `[1226번째 줄]FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name)` 구문을 통해 `"PHP_VALUE\nsessi.."`를 포함한 `나머지 fcgi_data_seg`가 작성된다면,
-`fcgi_data_seg`에서 `HTTP_EBUT`과 `값`은 `PHP_VALUE`와 `%0A로 구분되어지는 값`으로 덮어씌어 진다(`PUT`).
-10. 물론, PHP-FPM은 HTTP_EBUT과 PHP_VALUE의 hash_value, var_len이 동일하여 같은 헤더로 인식했기 때문에 가능하다.
-11. `[1326번째 줄]ini = FCGI_GETENV(request, "PHP_VALUE")` 구문을 통해 헤쉬버킷에서 `변조된 PHP_VALUE`를 검색하여 `ini stuff`로 가져오며, `PHP ini`파일에 작성한다.
-12. `PHP ini`에 변조하려는 값을 공격 체인으로 구성한다면, 원격 명령 제어를 위한 설정을 만들 수 있다. 또한 이를 통해, 다양한 원격 명령 실행이 가능하다.
-
+```  
+1. `Nginx`에서 사용자의 `Request`를 파싱하는 `FastCGI Process Manager`에 정의되어있는 `fastcgi_split_path_info` 정규표현식의 취약점을 사용할 수 있도록, 공격 URI에 `개행`문자를 삽입한다. 해당 문자열은 `PATH_INFO(env_path_info)`에 삽입된다.
+2. `fastcgi_split_path_info`정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 된다
+3. `[1141번째 줄]path_info = env_path_info ? env_path_info + pilen - slen : NULL`구문을 통해 `path_info`변수가 특정 `Underflow`값으로 초기된다.
+4. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `[1222번째 줄]path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
+5. `Nginx`와 `FastCGI`가 통신할때 사용하는 전역변수가 들어있는 CGI 환경구조체-`fcgi_data_seg`의 현재위치 `pos` 주소를 `path_info`가 가리키도록 설정한다.(추후 공격시, `path_info`값을 `pos`주소까지 성공적으로 맞춘다면, set-cookie 헤더를 확인할 수 있다.)
+6. `FCGI_PUTENV(char *name, char *value)`는 `fcgi_data_seg`구조체에서 `hash_value`를 검색하고, 메모리 힙에 로드된 해쉬버킷`(fcgi_hash_bucket)`값을 `char *value`와 `fcgi_hash_set`함수로 수정하는 함수이다.
+7. `fcgi_hash_buckt`의 `hash_value`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시값을 가진 더미헤더 `HTTP_EBUT`을 찾아낸다.
+8. 공격 Request에서 `D-Fisos`헤더는 `Ebut`헤더가 특정위치에 들어갈 수 있도록 자리를 차지하는 역할이며, `Ebut`은 `fastcgi_params`에 정의된 값에 의해 전역변수 `HTTP_EBUT`으로 자동으로 바뀐다
+9. 6번 과정을 자세히 설명하자면, `FCGI_PUTENV`의 `fcgi_hash_set`함수는 특정 헤시테이블의 `has_value`와 변수이름의 `길이`가 동일할 때, 새로운 변수와 값으로 덮어쓸 수 있다.
+10. 메모리 힙에서 `HTTP_EBUT`이 올라갈 주소를 `D-Fisos`헤더를 통해 수정된 `fcgi_data_seg->pos`주소와 `같은 버퍼(fcgi_data_seg)`안에 위치하도록 `유도`하고, 수정된 `fcgi_data_seg->pos` 값과 `[1226번째 줄]FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name)` 구문을 통해 `"PHP_VALUE\nsessi.."`를 포함한 나머지 CGI 환경구조체가 작성된다면, `HTTP_EBUT`과 해당`값`은 `PHP_VALUE`와 `%0A로 구분되어지는 값`으로 덮어씌어 진다(`PUT`).
+11. 물론, PHP FastCGI Process Manager는 `HTTP_EBUT`과 `PHP_VALUE`의 `hash_value, var_len`이 동일하여 같은 헤더로 인식했기 때문에 가능하다.
+12. `[1326번째 줄]ini = FCGI_GETENV(request, "PHP_VALUE")` 구문을 통해 헤쉬버킷`(fcgi_hash_bucket)`에서 `변조된 PHP_VALUE(전 HTTP_EBUT)`를 검색하여 `ini stuff`변수로 가져오며, 이를 `PHP ini`파일에 작성한다.
+13. `PHP ini`에 작성하려는 값을 공격 체인을 통해 구성한다면, 원격 명령 제어를 위한 설정을 만들 수 있다. 또한 이를 통해, 다양한 원격 명령 실행이 가능하다.
 
 * 공격 페이로드는 [여기로](https://chanbin.github.io/threat/2019/12/26/php-fpm-payload)가면 볼 수 있다.
 
 
-## 이제 제대로 분석하자. 
+## 이제 제대로 분석하자. (여기서 부터 재공사중 - 논리가 부실함)
 
 취약점 패치 내역을 다시 보면 `path_info` 변수의 조건에 문자열 길이 필터를 추가하여, false 값으로 유도하지 못하게 하고있다.
 
@@ -504,21 +502,20 @@ Host: 127.0.0.1:8080
 User-Agent: Mozilla/5.0
 D-Pisos: 8========================================================================================================================================================================================================================================================D(250자)
 Ebut: mamku tvoyu
-```
-1. `fastcgi_split_path_info` 정규표현식을 이용하여 `PATH_INFO(env_path_info)`에 `개행`문자를 삽입한다.
-2. 정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 되어 `path_info`변수가 특정 `Underflow`값으로 초기된다.
-3. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `[1222번째 줄]path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
-4. `path_info`가 PHP-FPM의 CGI 환경구조체인 `fcgi_data_seg`의 `pos` 주소를 가리키도록 설정한다.(추후 공격시, `pos`주소 까지의 offset을 맞춘다면 set-cookie 헤더를 확인할 수 있다.)
-5. `FCGI_PUTENV(char *name, char *value)`는 `nginx`와 `fastcgi`가 통신할때 사용하는 전역변수에 들어있는 구조체(`fcgi_data_seg`)에서 해쉬(`hash_value`)를 검색하여
-메모리의 힙에 로드된 해쉬버킷(`fcgi_hash_buket`)값을 수정한다(fcgi_hash_set함수).
-6. `fcgi_hash_buckt`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시값을 가진 더미헤더 `HTTP_EBUT`을 찾아낸다.
-7. `D-Fisos`헤더는 `Ebut`헤더가 특정위치에 들어갈 수 있도록 자리를 차지하는 역할이며, `Ebut`은 `fastcgi_params`에 정의된 전역변수 `HTTP_EBUT`으로 자동으로 바뀐다
-8. `FCGI_PUTENV`의 `fcgi_hash_set`에서, 특정 헤시테이블의 `has_value`와 변수이름의 `길이`가 동일하면 새로운 변수와 값으로 덮어쓸 수 있다.
-9. `HTTP_EBUT`의 주소를 `D-Fiso`s헤더를 통해 수정될 `fcgi_data_seg->pos`주소와 `같은 버퍼(fcgi_data_seg)`안에 위치하도록 `유도`하고, 수정된 `fcgi_data_seg->pos` 값과 `[1226번째 줄]FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name)` 구문을 통해 `"PHP_VALUE\nsessi.."`를 포함한 `나머지 fcgi_data_seg`가 작성된다면,
-`fcgi_data_seg`에서 `HTTP_EBUT`과 `값`은 `PHP_VALUE`와 `%0A로 구분되어지는 값`으로 덮어씌어 진다(`PUT`).
-10. 물론, PHP-FPM은 HTTP_EBUT과 PHP_VALUE의 hash_value, var_len이 동일하여 같은 헤더로 인식했기 때문에 가능하다.
-11. `[1326번째 줄]ini = FCGI_GETENV(request, "PHP_VALUE")` 구문을 통해 헤쉬버킷에서 `변조된 PHP_VALUE`를 검색하여 `ini stuff`로 가져오며, `PHP ini`파일에 작성한다.
-12. `PHP ini`에 변조하려는 값을 공격 체인으로 구성한다면, 원격 명령 제어를 위한 설정을 만들 수 있다. 또한 이를 통해, 다양한 원격 명령 실행이 가능하다.
+```  
+1. `Nginx`에서 사용자의 `Request`를 파싱하는 `FastCGI Process Manager`에 정의되어있는 `fastcgi_split_path_info` 정규표현식의 취약점을 사용할 수 있도록, 공격 URI에 `개행`문자를 삽입한다. 해당 문자열은 `PATH_INFO(env_path_info)`에 삽입된다.
+2. `fastcgi_split_path_info`정규 표현식 처리 실패로 `env_path_info`가 `NULL`이 된다
+3. `[1141번째 줄]path_info = env_path_info ? env_path_info + pilen - slen : NULL`구문을 통해 `path_info`변수가 특정 `Underflow`값으로 초기된다.
+4. `path_info`가 특정 주소를 가리킬 수 있게 되었고, `[1222번째 줄]path_info[0] = 0`구문을 통해 특정주소의 첫번재 바이트를 `0x00`으로 설정이 가능해진다.
+5. `Nginx`와 `FastCGI`가 통신할때 사용하는 전역변수가 들어있는 CGI 환경구조체-`fcgi_data_seg`의 현재위치 `pos` 주소를 `path_info`가 가리키도록 설정한다.(추후 공격시, `path_info`값을 `pos`주소까지 성공적으로 맞춘다면, set-cookie 헤더를 확인할 수 있다.)
+6. `FCGI_PUTENV(char *name, char *value)`는 `fcgi_data_seg`구조체에서 `hash_value`를 검색하고, 메모리 힙에 로드된 해쉬버킷`(fcgi_hash_bucket)`값을 `char *value`와 `fcgi_hash_set`함수로 수정하는 함수이다.
+7. `fcgi_hash_buckt`의 `hash_value`에 대한 제 2 역상 공격을 통해 `PHP_VALUE`와 동일한 해시값을 가진 더미헤더 `HTTP_EBUT`을 찾아낸다.
+8. 공격 Request에서 `D-Fisos`헤더는 `Ebut`헤더가 특정위치에 들어갈 수 있도록 자리를 차지하는 역할이며, `Ebut`은 `fastcgi_params`에 정의된 값에 의해 전역변수 `HTTP_EBUT`으로 자동으로 바뀐다
+9. 6번 과정을 자세히 설명하자면, `FCGI_PUTENV`의 `fcgi_hash_set`함수는 특정 헤시테이블의 `has_value`와 변수이름의 `길이`가 동일할 때, 새로운 변수와 값으로 덮어쓸 수 있다.
+10. 메모리 힙에서 `HTTP_EBUT`이 올라갈 주소를 `D-Fisos`헤더를 통해 수정된 `fcgi_data_seg->pos`주소와 `같은 버퍼(fcgi_data_seg)`안에 위치하도록 `유도`하고, 수정된 `fcgi_data_seg->pos` 값과 `[1226번째 줄]FCGI_PUTENV(request, "ORIG_SCRIPT_NAME", orig_script_name)` 구문을 통해 `"PHP_VALUE\nsessi.."`를 포함한 나머지 CGI 환경구조체가 작성된다면, `HTTP_EBUT`과 해당`값`은 `PHP_VALUE`와 `%0A로 구분되어지는 값`으로 덮어씌어 진다(`PUT`).
+11. 물론, PHP FastCGI Process Manager는 `HTTP_EBUT`과 `PHP_VALUE`의 `hash_value, var_len`이 동일하여 같은 헤더로 인식했기 때문에 가능하다.
+12. `[1326번째 줄]ini = FCGI_GETENV(request, "PHP_VALUE")` 구문을 통해 헤쉬버킷`(fcgi_hash_bucket)`에서 `변조된 PHP_VALUE(전 HTTP_EBUT)`를 검색하여 `ini stuff`변수로 가져오며, 이를 `PHP ini`파일에 작성한다.
+13. `PHP ini`에 작성하려는 값을 공격 체인을 통해 구성한다면, 원격 명령 제어를 위한 설정을 만들 수 있다. 또한 이를 통해, 다양한 원격 명령 실행이 가능하다.
 
 
 * 공격 페이로드는 [여기로](https://chanbin.github.io/threat/2019/12/26/php-fpm-payload)가면 볼 수 있다.
