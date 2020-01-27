@@ -23,7 +23,7 @@ comments: true
 
 ## SANS Cheet Sheet
 
-![](https://chanbin.github.io/assets/img/cheet-sheet/sans.PNG)
+![](https://chanbin.github.io/assets/img/cheet-sheet/sans.jpg)
 <center>메모리 덤프시, Volatility 사용에 대한 팁</center>
 > 출처: https://blog.compass-security.com/2019/10/hacking-tools-cheat-sheet/?fbclid=IwAR2UpkHi-VbpaL51idHDrPizriLUThcZTFDcl-S5O6CR-CVHqKjwHrBVFXc
  

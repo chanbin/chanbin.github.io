@@ -48,18 +48,6 @@ Disruption of normal access for users and systems, in order to stop the attack f
 추출 단계: 손상된 시스템에서 데이터를 가져온다.<br>
 The extraction stage: getting data out of the compromised system.
 
+<br>
 ![](https://chanbin.github.io/assets/img/kill-chain/kill-chain2.PNG)
-> 출처: https://www.varonis.com/blog/cyber-kill-chain/
-
-
-
-
-
-
-
-
-
-
-![](https://chanbin.github.io/assets/img/cheet-sheet/hackingtools2.PNG)
-<center>다양한 해킹 툴 사용에 대한 팁</center>
- 
+> 출처: https://www.varonis.com/blog/cyber-kill-chain/ 
