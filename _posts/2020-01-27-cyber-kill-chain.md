@@ -14,7 +14,7 @@ comments: true
 ![](https://chanbin.github.io/assets/img/kill-chain/kill-chain1.PNG)
 > 출처: https://www.varonis.com/blog/cyber-kill-chain/
 
-내부 공격인지 외부 공격인지에 관계없이, 각 단계는 사이버 공격에서 다양한 유형의 활동과 관련이 있다.
+###내부 공격인지 외부 공격인지에 관계없이, 각 단계는 사이버 공격에서 다양한 유형의 활동과 관련이 있다.
 
 ## 1. Reconnaissance (정찰)<br>
 정찰 단계: 공격자는 일반적으로 공격 대상 및 전략을 수립하기 위해, 외부에서 시스템의 환경을 점검한다.<br>
