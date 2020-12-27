@@ -1,8 +1,8 @@
 ---
 layout: post
 title: '[분석] Incident_Response(Linux)'
-subtitle: 'threat, Incident, Response, Linux'
-categories: threat
+subtitle: 'management, Incident, Response, Linux'
+categories: management
 comments: true
 ---
 
