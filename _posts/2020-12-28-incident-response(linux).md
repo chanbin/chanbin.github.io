@@ -10,6 +10,8 @@ comments: true
 
 # Incident_Response(Linux)
 
+<br>
+
 ## Accounts
 
 ### 1. cat /etc/group : 계정별 그룹 목록
@@ -26,13 +28,17 @@ comments: true
 
 ### 7. lastlog : 계정별 마지막 접속 기록
 
-### File
+<br>
+
+## File
 
 ### 1. fls -r -m (sleuthkit) : 파일 목록(삭제된 파일 포함)
 
 ### 2. mactime -b (sleuthkit): 파일 목록별 생성 시간
 
-### Network
+<br>
+
+## Network
 
 ### 1. arp : arp table
 
@@ -40,7 +46,9 @@ comments: true
 
 ### 3. netstat -an : 네트워크 연결 상태
 
-### OSinfo
+<br>
+
+## OSinfo
 
 ### 1. date : 현재 시스템 시간
 
@@ -52,7 +60,9 @@ comments: true
 
 ### 5. uname -a : 운영체제 버젼 정보
 
-### Process
+<br>
+
+## Process
 
 ### 1. crontab -l : 스케쥴러 정보
 
@@ -64,6 +74,8 @@ comments: true
 
 ### 5. pstree -a : 계층 구조로 프로세스 조회
 
-### WebLog
+<br>
+
+## WebLog
 
 ### 1. sudo find /var/log -name "access.log" : 
