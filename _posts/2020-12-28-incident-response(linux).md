@@ -6,7 +6,7 @@ categories: management
 comments: true
 ---
 
-> 이 글은 침해사고 발생 시 수집해야 할 명령어들을 정리한 글입니다.
+> 이 글은 침해사고 발생 시 수집해야 할 정보들을 정리한 글입니다.
 
 # Incident_Response(Linux)
 
