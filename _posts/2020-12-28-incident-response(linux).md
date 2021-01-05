@@ -36,6 +36,11 @@ comments: true
 
 ### 2. mactime -b (sleuthkit): 파일 목록별 생성 시간
 
+### 3. sudo du -ckx | sort -nr : 파일별 용량
+-c : --total
+-k : block-size 1K
+-x : skip filesystem directories
+
 <br>
 
 ## Network
