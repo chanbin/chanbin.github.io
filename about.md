@@ -19,6 +19,7 @@ order: 3
 ## 사이드프로젝트
 
 - [MFT 자동 추출 및 분석](https://github.com/chanbin/MFTparser) - MFTparser
+- 신규 블로그 개설(https://chancert-soc.blogspot.com/) - 
 
 ## 하고싶은 말
 
